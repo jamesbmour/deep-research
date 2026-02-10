@@ -288,6 +288,8 @@
     "bocha": "Bocha",
     "parallelSearch": "Búsqueda Paralela",
     "parallelSearchTip": "La búsqueda paralela ayuda a acelerar el proceso de recopilación de datos, pero una tasa demasiado alta puede activar el límite de solicitudes por minuto del modelo.",
+    "maxCollectionTopics": "Temas de recopilación",
+    "maxCollectionTopicsTip": "Número máximo de temas de recopilación de información que se generan e investigan en cada ronda.",
     "searchResults": "Resultados de Búsqueda",
     "searchResultsTip": "El número máximo de búsquedas web. Algunos motores de búsqueda no admiten este parámetro.",
     "searchApiKeyPlaceholder": "Por favor, introduce tu Clave API",
@@ -336,6 +338,10 @@
     "confirm": "Confirmar",
     "cancel": "Cancelar",
     "useLocalResource": "Solo usar recursos locales",
-    "useLocalResourceTip": "Al habilitarlo, solo se utilizarán recursos locales para la investigación y el rastreo web. No se realizarán solicitudes externas."
+    "useLocalResourceTip": "Al habilitarlo, solo se utilizarán recursos locales para la investigación y el rastreo web. No se realizarán solicitudes externas.",
+    "promptOverrides": "Sobrescritura de prompts",
+    "promptOverridesTip": "Usa un objeto JSON para sobrescribir los prompts integrados de investigación profunda. Solo se sobrescriben las claves proporcionadas.",
+    "promptOverridesPlaceholder": "{\n  \"systemInstruction\": \"You are an expert researcher...\",\n  \"reportPlanPrompt\": \"Given the following query...\"\n}",
+    "promptOverridesInvalid": "La sobrescritura de prompts debe ser un objeto JSON válido."
   }
 }

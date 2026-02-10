@@ -72,6 +72,7 @@ export interface SettingStore {
   searxngApiProxy: string;
   searxngScope: string;
   parallelSearch: number;
+  maxCollectionTopics: number;
   searchMaxResult: number;
   crawler: string;
   language: string;
@@ -82,6 +83,7 @@ export interface SettingStore {
   smoothTextStreamType: "character" | "word" | "line";
   onlyUseLocalResource: "enable" | "disable";
   useFileFormatResource: "enable" | "disable";
+  deepResearchPromptOverrides: string;
 }
 
 interface SettingActions {
@@ -160,6 +162,7 @@ export const defaultValues: SettingStore = {
   searxngApiProxy: "",
   searxngScope: "all",
   parallelSearch: 1,
+  maxCollectionTopics: 5,
   searchMaxResult: 5,
   crawler: "jina",
   language: "",
@@ -170,6 +173,7 @@ export const defaultValues: SettingStore = {
   smoothTextStreamType: "word",
   onlyUseLocalResource: "disable",
   useFileFormatResource: "disable",
+  deepResearchPromptOverrides: "",
 };
 
 export const useSettingStore = create(

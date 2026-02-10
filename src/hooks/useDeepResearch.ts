@@ -18,9 +18,13 @@ import { useTaskStore } from "@/store/task";
 import { useHistoryStore } from "@/store/history";
 import { useSettingStore } from "@/store/setting";
 import { useKnowledgeStore } from "@/store/knowledge";
-import { outputGuidelinesPrompt } from "@/constants/prompts";
+import {
+  parseDeepResearchPromptOverrides,
+  type DeepResearchPromptOverrides,
+} from "@/constants/prompts";
 import {
   getSystemPrompt,
+  getOutputGuidelinesPrompt,
   generateQuestionsPrompt,
   writeReportPlanPrompt,
   generateSerpQueriesPrompt,
@@ -63,6 +67,25 @@ function useDeepResearch() {
   const { createModelProvider, getModel } = useModelProvider();
   const { search } = useWebSearch();
   const [status, setStatus] = useState<string>("");
+
+  function getPromptOverrides() {
+    const { deepResearchPromptOverrides } = useSettingStore.getState();
+    try {
+      return parseDeepResearchPromptOverrides(deepResearchPromptOverrides);
+    } catch (error) {
+      handleError(error);
+      return {} as DeepResearchPromptOverrides;
+    }
+  }
+
+  function getMaxCollectionTopics() {
+    const { maxCollectionTopics } = useSettingStore.getState();
+    const value = Number(maxCollectionTopics);
+    if (!Number.isFinite(value)) {
+      return 5;
+    }
+    return Math.max(1, Math.min(20, Math.floor(value)));
+  }
 
   async function generateSearchSettings(searchModel: string) {
     const { provider, enableSearch, searchProvider, searchMaxResult } =
@@ -142,12 +165,13 @@ function useDeepResearch() {
     const { thinkingModel } = getModel();
     setStatus(t("research.common.thinking"));
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
+    const promptOverrides = getPromptOverrides();
     const searchSettings = await generateSearchSettings(thinkingModel);
     const result = streamText({
       ...searchSettings,
-      system: getSystemPrompt(),
+      system: getSystemPrompt(promptOverrides),
       prompt: [
-        generateQuestionsPrompt(question),
+        generateQuestionsPrompt(question, promptOverrides),
         getResponseLanguagePrompt(),
       ].join("\n\n"),
       experimental_transform: smoothTextStream(smoothTextStreamType),
@@ -180,13 +204,15 @@ function useDeepResearch() {
     const { thinkingModel } = getModel();
     setStatus(t("research.common.thinking"));
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
+    const promptOverrides = getPromptOverrides();
     const searchSettings = await generateSearchSettings(thinkingModel);
     const result = streamText({
       ...searchSettings,
-      system: getSystemPrompt(),
-      prompt: [writeReportPlanPrompt(query), getResponseLanguagePrompt()].join(
-        "\n\n"
-      ),
+      system: getSystemPrompt(promptOverrides),
+      prompt: [
+        writeReportPlanPrompt(query, promptOverrides),
+        getResponseLanguagePrompt(),
+      ].join("\n\n"),
       experimental_transform: smoothTextStream(smoothTextStreamType),
       onError: handleError,
     });
@@ -212,7 +238,11 @@ function useDeepResearch() {
     return content;
   }
 
-  async function searchLocalKnowledges(query: string, researchGoal: string) {
+  async function searchLocalKnowledges(
+    query: string,
+    researchGoal: string,
+    promptOverrides: DeepResearchPromptOverrides = {}
+  ) {
     const { resources } = useTaskStore.getState();
     const knowledgeStore = useKnowledgeStore.getState();
     const knowledges: Knowledge[] = [];
@@ -230,9 +260,14 @@ function useDeepResearch() {
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
     const searchResult = streamText({
       model: await createModelProvider(networkingModel),
-      system: getSystemPrompt(),
+      system: getSystemPrompt(promptOverrides),
       prompt: [
-        processSearchKnowledgeResultPrompt(query, researchGoal, knowledges),
+        processSearchKnowledgeResultPrompt(
+          query,
+          researchGoal,
+          knowledges,
+          promptOverrides
+        ),
         getResponseLanguagePrompt(),
       ].join("\n\n"),
       experimental_transform: smoothTextStream(smoothTextStreamType),
@@ -270,6 +305,7 @@ function useDeepResearch() {
     } = useSettingStore.getState();
     const { resources } = useTaskStore.getState();
     const { networkingModel } = getModel();
+    const promptOverrides = getPromptOverrides();
     setStatus(t("research.common.research"));
     const plimit = Plimit(parallelSearch);
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
@@ -286,7 +322,8 @@ function useDeepResearch() {
           if (resources.length > 0) {
             const knowledges = await searchLocalKnowledges(
               item.query,
-              item.researchGoal
+              item.researchGoal,
+              promptOverrides
             );
             content += [
               knowledges,
@@ -330,13 +367,14 @@ function useDeepResearch() {
                 sources.length > 0 && references === "enable";
               searchResult = streamText({
                 model: await createModelProvider(networkingModel),
-                system: getSystemPrompt(),
+                system: getSystemPrompt(promptOverrides),
                 prompt: [
                   processSearchResultPrompt(
                     item.query,
                     item.researchGoal,
                     sources,
-                    enableReferences
+                    enableReferences,
+                    promptOverrides
                   ),
                   getResponseLanguagePrompt(),
                 ].join("\n\n"),
@@ -349,9 +387,13 @@ function useDeepResearch() {
               );
               searchResult = streamText({
                 ...searchSettings,
-                system: getSystemPrompt(),
+                system: getSystemPrompt(promptOverrides),
                 prompt: [
-                  processResultPrompt(item.query, item.researchGoal),
+                  processResultPrompt(
+                    item.query,
+                    item.researchGoal,
+                    promptOverrides
+                  ),
                   getResponseLanguagePrompt(),
                 ].join("\n\n"),
                 experimental_transform: smoothTextStream(smoothTextStreamType),
@@ -361,9 +403,13 @@ function useDeepResearch() {
           } else {
             searchResult = streamText({
               model: await createModelProvider(networkingModel),
-              system: getSystemPrompt(),
+              system: getSystemPrompt(promptOverrides),
               prompt: [
-                processResultPrompt(item.query, item.researchGoal),
+                processResultPrompt(
+                  item.query,
+                  item.researchGoal,
+                  promptOverrides
+                ),
                 getResponseLanguagePrompt(),
               ].join("\n\n"),
               experimental_transform: smoothTextStream(smoothTextStreamType),
@@ -455,14 +501,20 @@ function useDeepResearch() {
   async function reviewSearchResult() {
     const { reportPlan, tasks, suggestion } = useTaskStore.getState();
     const { thinkingModel } = getModel();
+    const promptOverrides = getPromptOverrides();
     setStatus(t("research.common.research"));
     const learnings = tasks.map((item) => item.learning);
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
     const result = streamText({
       model: await createModelProvider(thinkingModel),
-      system: getSystemPrompt(),
+      system: getSystemPrompt(promptOverrides),
       prompt: [
-        reviewSerpQueriesPrompt(reportPlan, learnings, suggestion),
+        reviewSerpQueriesPrompt(
+          reportPlan,
+          learnings,
+          suggestion,
+          promptOverrides
+        ),
         getResponseLanguagePrompt(),
       ].join("\n\n"),
       experimental_transform: smoothTextStream(smoothTextStreamType),
@@ -493,6 +545,7 @@ function useDeepResearch() {
                   ...pick(item, ["query", "researchGoal"]),
                 })
               );
+              queries = queries.slice(0, getMaxCollectionTopics());
             }
           }
         },
@@ -522,6 +575,7 @@ function useDeepResearch() {
     } = useTaskStore.getState();
     const { save } = useHistoryStore.getState();
     const { thinkingModel } = getModel();
+    const promptOverrides = getPromptOverrides();
     setStatus(t("research.common.writing"));
     updateFinalReport("");
     setTitle("");
@@ -582,7 +636,8 @@ function useDeepResearch() {
             requirement,
             enableCitationImage,
             enableReferences,
-            enableFileFormatResource
+            enableFileFormatResource,
+            promptOverrides
           ),
           getResponseLanguagePrompt(),
         ].join("\n\n"),
@@ -599,7 +654,10 @@ function useDeepResearch() {
 
     const result = streamText({
       model: await createModelProvider(thinkingModel),
-      system: [getSystemPrompt(), outputGuidelinesPrompt].join("\n\n"),
+      system: [
+        getSystemPrompt(promptOverrides),
+        getOutputGuidelinesPrompt(promptOverrides),
+      ].join("\n\n"),
       messages: [
         {
           role: "user",
@@ -661,14 +719,15 @@ function useDeepResearch() {
   async function deepResearch() {
     const { reportPlan } = useTaskStore.getState();
     const { thinkingModel } = getModel();
+    const promptOverrides = getPromptOverrides();
     setStatus(t("research.common.thinking"));
     try {
       const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
       const result = streamText({
         model: await createModelProvider(thinkingModel),
-        system: getSystemPrompt(),
+        system: getSystemPrompt(promptOverrides),
         prompt: [
-          generateSerpQueriesPrompt(reportPlan),
+          generateSerpQueriesPrompt(reportPlan, promptOverrides),
           getResponseLanguagePrompt(),
         ].join("\n\n"),
         experimental_transform: smoothTextStream(smoothTextStreamType),
@@ -700,6 +759,7 @@ function useDeepResearch() {
                       ...pick(item, ["query", "researchGoal"]),
                     })
                   );
+                  queries = queries.slice(0, getMaxCollectionTopics());
                   taskStore.update(queries);
                 }
               }
