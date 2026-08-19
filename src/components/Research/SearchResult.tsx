@@ -95,7 +95,8 @@ function TaskState({ state }: { state: SearchTask["state"] }) {
 function SearchResult() {
   const { t } = useTranslation();
   const taskStore = useTaskStore();
-  const { status, runSearchTask, reviewSearchResult } = useDeepResearch();
+  const { status, runSearchTask, reviewSearchResult, stop } =
+    useDeepResearch();
   const { generateId } = useKnowledge();
   const {
     formattedTime,
@@ -196,6 +197,7 @@ function SearchResult() {
     try {
       accurateTimerStart();
       setIsThinking(true);
+      await stop();
       if (unfinishedTasks.length > 0) {
         await runSearchTask(unfinishedTasks);
       } else {
@@ -234,6 +236,7 @@ function SearchResult() {
       images: [],
       state: "unprocessed",
     };
+    await stop();
     updateTask(query, newTask);
     await runSearchTask([newTask]);
   }
@@ -255,6 +258,7 @@ function SearchResult() {
     try {
       accurateTimerStart();
       setIsThinking(true);
+      await stop();
       retryTasks.forEach((task) => {
         updateTask(task.query, task);
       });

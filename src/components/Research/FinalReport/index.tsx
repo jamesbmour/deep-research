@@ -55,7 +55,7 @@ function FinalReport() {
   const { t } = useTranslation();
   const taskStore = useTaskStore();
   const { deepResearchPromptOverrides } = useSettingStore();
-  const { status, writeFinalReport } = useDeepResearch();
+  const { status, writeFinalReport, stop } = useDeepResearch();
   const { generateId } = useKnowledge();
   const {
     formattedTime,
@@ -93,6 +93,7 @@ function FinalReport() {
     try {
       accurateTimerStart();
       setIsWriting(true);
+      await stop();
       if (values.requirement) setRequirement(values.requirement);
       await writeFinalReport();
     } finally {

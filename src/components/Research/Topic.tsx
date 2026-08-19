@@ -44,7 +44,7 @@ function Topic() {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const taskStore = useTaskStore();
-  const { askQuestions } = useDeepResearch();
+  const { askQuestions, stop } = useDeepResearch();
   const { hasApiKey } = useAiProvider();
   const { getKnowledgeFromFile } = useKnowledge();
   const {
@@ -102,10 +102,11 @@ function Topic() {
 
   async function handleSubmit(values: z.infer<typeof formSchema>) {
     if (handleCheck()) {
-      const { id, setQuestion } = useTaskStore.getState();
       try {
         setIsThinking(true);
         accurateTimerStart();
+        await stop();
+        const { id, setQuestion } = useTaskStore.getState();
         if (id !== "") {
           createNewResearch();
           form.setValue("topic", values.topic);
@@ -125,6 +126,11 @@ function Topic() {
     if (id) update(id, backup());
     reset();
     form.reset();
+  }
+
+  async function handleNewResearch() {
+    await stop();
+    createNewResearch();
   }
 
   function openKnowledgeList() {
@@ -156,12 +162,13 @@ function Topic() {
         </h3>
         <div className="flex gap-1">
           <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => createNewResearch()}
+            variant="outline"
+            size="sm"
+            onClick={() => void handleNewResearch()}
             title={t("research.common.newResearch")}
           >
             <SquarePlus />
+            <span>{t("research.common.newResearch")}</span>
           </Button>
         </div>
       </div>

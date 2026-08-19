@@ -1,8 +1,11 @@
 "use client";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, Circle, LoaderCircle } from "lucide-react";
+import { CheckCircle2, Circle, LoaderCircle, Square } from "lucide-react";
+import { Button } from "@/components/Internal/Button";
 import { useTaskStore } from "@/store/task";
+import { useResearchRunStore } from "@/store/research";
+import useDeepResearch from "@/hooks/useDeepResearch";
 import { cn } from "@/utils/style";
 
 type StepState = "completed" | "active" | "pending";
@@ -28,6 +31,9 @@ function WorkflowProgress() {
   const { t } = useTranslation();
   const { question, questions, reportPlan, tasks, finalReport } =
     useTaskStore();
+  const { runningCount } = useResearchRunStore();
+  const { stop } = useDeepResearch();
+  const isRunning = runningCount > 0;
 
   const completedTaskCount = useMemo(() => {
     return tasks.filter((task) => task.state === "completed").length;
@@ -102,13 +108,25 @@ function WorkflowProgress() {
         <h3 className="font-semibold text-lg leading-6">
           {t("research.workflow.title")}
         </h3>
-        <span className="text-sm text-muted-foreground">
-          {t("research.workflow.summary", {
-            progress,
-            completed: completedStages,
-            total: steps.length,
-          })}
-        </span>
+        <div className="flex items-center gap-2">
+          {isRunning ? (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => void stop()}
+            >
+              <Square />
+              <span>{t("research.common.stopResearch")}</span>
+            </Button>
+          ) : null}
+          <span className="text-sm text-muted-foreground">
+            {t("research.workflow.summary", {
+              progress,
+              completed: completedStages,
+              total: steps.length,
+            })}
+          </span>
+        </div>
       </div>
       <div className="mt-3 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
         <div

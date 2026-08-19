@@ -29,7 +29,7 @@ const formSchema = z.object({
 function Feedback() {
   const { t } = useTranslation();
   const taskStore = useTaskStore();
-  const { status, deepResearch, writeReportPlan } = useDeepResearch();
+  const { status, deepResearch, writeReportPlan, stop } = useDeepResearch();
   const {
     formattedTime,
     start: accurateTimerStart,
@@ -52,6 +52,7 @@ function Feedback() {
     try {
       accurateTimerStart();
       setIsResaerch(true);
+      await stop();
       await deepResearch();
     } finally {
       setIsResaerch(false);
@@ -71,6 +72,7 @@ function Feedback() {
     try {
       accurateTimerStart();
       setIsThinking(true);
+      await stop();
       await writeReportPlan();
       setIsThinking(false);
     } finally {
